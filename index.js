@@ -9,9 +9,6 @@ module.exports = (function() {
         //set your module's name for logging output 
         name: 'CI Module',
 
-        //you can choose to extend your module's model
-        extendModel: require('./model.js'),
-
         //you can choose to extend your module's routes
         appendRoute: require('./route.js')
 
