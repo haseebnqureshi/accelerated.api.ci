@@ -61,30 +61,32 @@ module.exports = function(express, app, models, settings) {
 
 		.post(function(req, res) {
 
-			//prepare integration logic
+			//return status immediately back
+			res.status(200).send({
+				message: 'Received webhook and processing ci request...'
+			});
+
+			//loading environment variables
+			model.loadEnvVars();
+
+			//emitting to other specified instances
+			emit(req);
+
+			//preparing our integration logic
 			model
-				.loadEnvVars()
 				.ensureSetup()
 				.savePayload(req.body)
 				.summarizeEvent(req.params.event)
 				.summarizeActor();
 				
-			//require payload to match webhook params
+			//now evaluating our ci request
 			model.pullIf(
 				model.isEventType(req.params.type) 
 				&& model.isEventName(req.params.name)
 			);
 
-			//execute our integration scripts
+			//and executing our integration scripts, after some final checks
 			model.run();
-
-			//emitting to other specified instances
-			emit(req);
-
-			//return status to bitbucket
-			return res.status(200).send({
-				message: 'Received webhook and processing ci request...'
-			});
 
 		});
 

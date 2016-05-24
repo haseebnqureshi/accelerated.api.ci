@@ -1,6 +1,6 @@
 {
   "name": "accelerated.api.ci",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Basic continuous integration for Accelerated apps.",
   "main": "index.js",
   "scripts": {
