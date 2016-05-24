@@ -103,7 +103,7 @@ module.exports = function(model, express, app, models, settings) {
 
 				//make sure we run with root privileges
 				child.execSync(cmd, [], {
-					uid: 'root'
+					uid: process.env.USER
 				});
 			}
 			catch (err) {
@@ -268,7 +268,9 @@ module.exports = function(model, express, app, models, settings) {
 				].join(' ');
 
 				//make sure we run with root privileges
-				child.execSync(cmd);
+				child.execSync(cmd, [], {
+					uid: 'root'
+				});
 			}
 			catch (err) {
 				log.get().error('Restart failed! See above...');
