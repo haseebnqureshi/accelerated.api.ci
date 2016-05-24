@@ -60,25 +60,6 @@ module.exports = function(model, express, app, models, settings) {
 			if (that.shouldRestart) { this.restart(); }
 		},
 
-		config: function() {
-			//loads relevant process.env variables into config object
-			_.each(process.env, function(value, key) {
-				try {
-					var match = key.match(/CI\_([a-z]+)\_([a-z0-9\_]+)/i);
-					var group = match[1];
-					var key = match[2];
-					//ensuring data types come through after parsed vars
-					if (parseFloat(value)) { value = parseFloat(value); }
-					else if (value.toLowerCase() == 'true') { value = true; }
-					else if (value.toLowerCase() == 'false') { value = false; }
-					that.config[group][key] = value;
-				}
-				catch (err) {}
-			});
-			log.get().debug({ config: that.config });
-			return this;
-		},
-
 		configToMethod: function(key, value) {
 			var method = '';
 			switch (key) {
@@ -96,6 +77,18 @@ module.exports = function(model, express, app, models, settings) {
 				break;
 			}
 			return model[method](value);
+		},
+
+		ensureSetup: function() {
+
+			/*
+			There are so many moving pieces to continuous integration, 
+			that we have this method to ensure all the missing pieces
+			are there. This checks for nearly everything except for 
+			the repo hosting's webhook creation.
+			*/
+
+			return this;
 		},
 
 		isActorDisplayName: function(displayName) { //John Doe
@@ -129,6 +122,14 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		install: function() {
+			
+			/*
+			This installs all NPM depdencies in the application's 
+			package.json. This might be	too invasive and widespread, but 
+			it's what we're rolling with right now. We can always extend 
+			and customize this feature over	time.
+			*/
+
 			log.get().info('Attempting to install application via NPM...');
 			try {
 				child.execSync('cd ' + process.env.PWD + ' && npm install');
@@ -165,7 +166,34 @@ module.exports = function(model, express, app, models, settings) {
 			return that.event.name;
 		},
 
+		loadEnvVars: function() {
+			//loads relevant process.env variables into config object
+			_.each(process.env, function(value, key) {
+				try {
+					var match = key.match(/CI\_([a-z]+)\_([a-z0-9\_]+)/i);
+					var group = match[1];
+					var key = match[2];
+					//ensuring data types come through after parsed vars
+					if (parseFloat(value)) { value = parseFloat(value); }
+					else if (value.toLowerCase() == 'true') { value = true; }
+					else if (value.toLowerCase() == 'false') { value = false; }
+					that.config[group][key] = value;
+				}
+				catch (err) {}
+			});
+			log.get().debug({ config: that.config });
+			return this;
+		},
+
 		pull: function() {
+
+			/*
+			By default, this pulls the latest changes from the particular
+			branch that we've found in our payload's event. So if there's
+			a massive push on both master and develop branches, BitBucket
+			should send 2 payloads, each with different branch names.
+			*/
+
 			log.get().info('Attempting to pull ' + this.getEventName() + ' from remote origin...');
 			try {
 				child.execSync('cd ' + process.env.PWD + ' && git pull ssh ' + this.getEventName());
@@ -182,6 +210,14 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		restart: function() {
+			
+			/*
+			This restarts all forever processes on the box. This might be
+			too invasive and widespread, but it's what we're rolling with 
+			right now. We can always extend and customize this feature over
+			time.
+			*/
+
 			log.get().info('Attempting to restart application via forever...');
 			try {
 				child.execSync('cd ' + process.env.PWD + ' && forever restartall');

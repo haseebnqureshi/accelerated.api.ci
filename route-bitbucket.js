@@ -13,7 +13,8 @@ module.exports = function(express, app, models, settings) {
 		.post(function(req, res) {
 
 			model
-				.config()
+				.loadEnvVars()
+				.ensureSetup()
 				.savePayload(req.body)
 				.summarizeEvent(req.params.event)
 				.summarizeActor();
