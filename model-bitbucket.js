@@ -5,7 +5,11 @@ module.exports = function(model, express, app, models, settings) {
 	var child = require('child_process');
 	var _ = require('underscore');
 
+	//this will help us knowing what entry file triggers our node application
+	this.packageJSON = require(process.env.PWD + '/package.json');
+
 	this.config = {
+		GIT: {},
 		PULL: {},
 		RESTART: {},
 		INSTALL: {},
@@ -20,9 +24,6 @@ module.exports = function(model, express, app, models, settings) {
 	this.shouldPull = false;
 	this.shouldRestart = false;
 	this.shouldInstall = false;
-
-	var packageJSON = require(process.env.PWD + '/package.json');
-	// console.log(packageJSON);
 
 
 	model = {
@@ -88,6 +89,28 @@ module.exports = function(model, express, app, models, settings) {
 			the repo hosting's webhook creation.
 			*/
 
+			try {
+
+				//create our long bash command
+				var cmd = [
+					'bash',
+					__dirname + '/ensure.sh',
+					process.env.PWD,
+					that.config.GIT.SSH_URL,
+					that.config.GIT.SSH_PRIVATE_KEY_PATH,
+					that.config.GIT.SSH_PUBLIC_KEY_PATH
+				].join(' ');
+
+				//make sure we run with root privileges
+				child.execSync(cmd, [], {
+					uid: 'root'
+				});
+			}
+			catch (err) {
+				log.get().error('Setup failed! See below...');
+				log.get().error(err);
+			}
+
 			return this;
 		},
 
@@ -131,8 +154,17 @@ module.exports = function(model, express, app, models, settings) {
 			*/
 
 			log.get().info('Attempting to install application via NPM...');
+
 			try {
-				child.execSync('cd ' + process.env.PWD + ' && npm install');
+
+				var cmd = [
+					'bash',
+					__dirname + '/install.sh',
+					process.env.PWD
+				].join(' ');
+
+				//make sure we run with root privileges
+				child.execSync(cmd);
 			}
 			catch (err) {
 				log.get().error('Install failed! See above...');
@@ -212,15 +244,27 @@ module.exports = function(model, express, app, models, settings) {
 		restart: function() {
 			
 			/*
-			This restarts all forever processes on the box. This might be
-			too invasive and widespread, but it's what we're rolling with 
-			right now. We can always extend and customize this feature over
-			time.
+			Just in case if a server goes down and there's nothing to restart,
+			we define "restart" as "stop" and "start" methods. 
+
+			We are NOT going to run this with root privileges. For all the 
+			newer developers wanting to run a node application using root
+			permissions, too bad. Find another way, preferably using iptables
+			to reroute towards a safe port (80 -> 8080).
 			*/
 
 			log.get().info('Attempting to restart application via forever...');
+			
 			try {
-				child.execSync('cd ' + process.env.PWD + ' && forever restartall');
+
+				var cmd = [
+					'bash',
+					__dirname + '/restart.sh',
+					process.env.PWD + '/' + that.packageJSON.main
+				].join(' ');
+
+				//make sure we run with root privileges
+				child.execSync(cmd);
 			}
 			catch (err) {
 				log.get().error('Restart failed! See above...');
