@@ -114,6 +114,31 @@ module.exports = function(model, express, app, models, settings) {
 			return this;
 		},
 
+		getActor: function() {
+			return that.actor;
+		},
+
+		getConfig: function() {
+			return that.config;
+		},
+
+		getDelay: function() {
+			var milliseconds = that.config.RUN.DELAY || 500;
+			if (that.config.RUN.DELAY_RANDOMIZED === true) {
+				var max = that.config.RUN.DELAY_MAX || 5000;
+				milliseconds = Math.round( Math.random() * (max - milliseconds) ) + milliseconds;
+			}
+			return milliseconds;
+		},
+
+		getEvent: function() {
+			return that.event;
+		},
+
+		getEventName: function() {
+			return that.event.name;
+		},
+
 		isActorDisplayName: function(displayName) { //John Doe
 			log.get().debug({ specified: displayName, found: that.actor.display_name });
 			return that.actor.display_name == displayName;
@@ -175,27 +200,6 @@ module.exports = function(model, express, app, models, settings) {
 			log.get().debug({ shouldInstall: shouldInstall });
 			that.shouldInstall = shouldInstall;
 			return this;
-		},
-
-		getActor: function() {
-			return that.actor;
-		},
-
-		getDelay: function() {
-			var milliseconds = that.config.RUN.DELAY || 500;
-			if (that.config.RUN.DELAY_RANDOMIZED === true) {
-				var max = that.config.RUN.DELAY_MAX || 5000;
-				milliseconds = Math.round( Math.random() * (max - milliseconds) ) + milliseconds;
-			}
-			return milliseconds;
-		},
-
-		getEvent: function() {
-			return that.event;
-		},
-
-		getEventName: function() {
-			return that.event.name;
 		},
 
 		loadEnvVars: function() {
