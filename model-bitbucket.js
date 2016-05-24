@@ -9,7 +9,8 @@ module.exports = function(model, express, app, models, settings) {
 		PULL: {},
 		RESTART: {},
 		INSTALL: {},
-		NETWORK: {}
+		NETWORK: {},
+		RUN: {}
 	};
 
 	this.payload = null;
@@ -25,22 +26,28 @@ module.exports = function(model, express, app, models, settings) {
 
 	model = {
 
-		applyConfigToPull: function() {
-			_.each(that.config.PULL, function(value, key) {
-				model.configToMethod(key, value);
+		applyConfig: function() {
+			_.each([
+				that.config.PULL, 
+				that.config.INSTALL, 
+				that.config.RESTART
+			], function(config) {
+				_.each(config, function(value, key) {
+					model.configToMethod(key, value);
+				});
 			});
+			log.get().debug({ 
+				shouldPull: shouldPull,
+				shouldRestart: shouldRestart,
+				shouldInstall: shouldInstall 
+			});
+			return this;
 		},
 
-		applyConfigToInstall: function() {
-			_.each(that.config.INSTALL, function(value, key) {
-				model.configToMethod(key, value);
-			});
-		},
-
-		applyConfigToRestart: function() {
-			_.each(that.config.RESTART, function(value, key) {
-				model.configToMethod(key, value);
-			});
+		callActions: function() {
+			if (that.shouldPull) { this.pull(); }
+			if (that.shouldInstall) { this.install(); }
+			if (that.shouldRestart) { this.restart(); }
 		},
 
 		config: function() {
@@ -50,6 +57,10 @@ module.exports = function(model, express, app, models, settings) {
 					var match = key.match(/CI\_([a-z]+)\_([a-z0-9\_]+)/i);
 					var group = match[1];
 					var key = match[2];
+					//ensuring data types come through after parsed vars
+					if (parseFloat(value)) { value = parseFloat(value); }
+					else if (value.toLowerCase() == 'true') { value = true; }
+					else if (value.toLowerCase() == 'false') { value = false; }
 					that.config[group][key] = value;
 				}
 				catch (err) {}
@@ -121,6 +132,15 @@ module.exports = function(model, express, app, models, settings) {
 			return that.actor;
 		},
 
+		getDelay: function() {
+			var milliseconds = that.config.RUN.DELAY || 500;
+			if (that.config.RUN.DELAY_RANDOMIZED === true) {
+				var max = that.config.RUN.DELAY_MAX || 5000;
+				milliseconds = Math.round( Math.random() * (max - milliseconds) ) + milliseconds;
+			}
+			return milliseconds;
+		},
+
 		getEvent: function() {
 			return that.event;
 		},
@@ -146,29 +166,14 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		run: function() {
-			log.get().warn('Attempting to run...');
-
-			this.applyConfigToPull();
-			this.applyConfigToInstall();
-			this.applyConfigToRestart();
-
-			log.get().debug({ 
-				shouldPull: shouldPull,
-				shouldRestart: shouldRestart,
-				shouldInstall: shouldInstall 
-			});
-
-			if (that.shouldPull) { this.pull(); }
-			if (that.shouldInstall) { this.install(); }
-			if (that.shouldRestart) { this.restart(); }
-		},
-
-		runAfter: function(milliseconds) {
-			var milliseconds = milliseconds || 500;
-			log.get().warn('Waiting ' + milliseconds + 'ms to run...');
+			var milliseconds = this.getDelay();
+			log.get().warn('Waiting ' + milliseconds + ' ms to run...');
 			setTimeout(function() {
-				this.run();
+				log.get().warn('Attempting to run...');
+				this.applyConfig();
+				this.callActions();
 			}.bind(this), milliseconds);
+			return this;
 		},
 
 		savePayload: function(payload) {
