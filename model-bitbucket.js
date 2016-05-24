@@ -16,6 +16,7 @@ module.exports = function(model, express, app, models, settings) {
 	this.payload = null;
 	this.event = null;
 	this.actor = null;
+
 	this.shouldPull = false;
 	this.shouldRestart = false;
 	this.shouldInstall = false;
@@ -27,19 +28,28 @@ module.exports = function(model, express, app, models, settings) {
 	model = {
 
 		applyConfig: function() {
-			_.each([
-				that.config.PULL, 
-				that.config.INSTALL, 
-				that.config.RESTART
-			], function(config) {
-				_.each(config, function(value, key) {
-					model.configToMethod(key, value);
+			_.each(['PULL', 'INSTALL', 'RESTART'], function(group) {
+
+				/*
+				Go through all conditional values for each group. If all
+				values match, that is their unique array has a length of
+				1, then we directly set our shouldKey to its unanimous 
+				value. Otherwise, we leave our key alone.
+				*/
+
+				var shouldKey = 'should' + group.substr(0,1) + group.substr(1).toLowerCase();
+				var shouldValues = [];
+				_.each(that.config[group], function(value, key) {
+					shouldValues.push(model.configToMethod(key, value));
 				});
+				if (_.uniq(shouldValues).length == 1) {
+					that[shouldKey] = shouldValues[0];
+				}
 			});
 			log.get().debug({ 
-				shouldPull: shouldPull,
-				shouldRestart: shouldRestart,
-				shouldInstall: shouldInstall 
+				shouldPull: that.shouldPull,
+				shouldRestart: that.shouldRestart,
+				shouldInstall: that.shouldInstall 
 			});
 			return this;
 		},
@@ -145,8 +155,18 @@ module.exports = function(model, express, app, models, settings) {
 			return that.event;
 		},
 
-		pull: function() {
+		getEventName: function() {
+			return that.event.name;
+		},
 
+		pull: function() {
+			log.get().info('Attempting to pull ' + this.getEventName() + ' from remote origin...');
+			try {
+				child.execSync('cd ' + process.env.PWD + ' && git pull ssh ' + this.getEventName());
+			}
+			catch (err) {
+				log.get().error('Pull failed! See above...');
+			}
 		},
 
 		pullIf: function(shouldPull) {
