@@ -83,10 +83,7 @@ module.exports = function(express, app, models, settings) {
 
 			//return status to bitbucket
 			return res.status(200).send({
-				message: 'Received webhook and processing ci request...',
-				params: req.params,
-				actor: model.getActor(),
-				event: model.getEvent()
+				message: 'Received webhook and processing ci request...'
 			});
 
 		});
