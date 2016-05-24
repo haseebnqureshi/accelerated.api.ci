@@ -129,7 +129,13 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		install: function() {
-
+			log.get().info('Attempting to install application via NPM...');
+			try {
+				child.execSync('cd ' + process.env.PWD + ' && npm install');
+			}
+			catch (err) {
+				log.get().error('Install failed! See above...');
+			}
 		},
 
 		installIf: function(shouldInstall) {
@@ -176,7 +182,13 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		restart: function() {
-
+			log.get().info('Attempting to restart application via forever...');
+			try {
+				child.execSync('cd ' + process.env.PWD + ' && forever restartall');
+			}
+			catch (err) {
+				log.get().error('Restart failed! See above...');
+			}
 		},
 
 		restartIf: function(shouldRestart) {
