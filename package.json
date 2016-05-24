@@ -1,10 +1,11 @@
 {
   "name": "accelerated.api.ci",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Basic continuous integration for Accelerated apps.",
   "main": "index.js",
   "scripts": {
-    "test": "npm -v"
+    "test": "npm -v",
+    "server": "bash server.sh"
   },
   "author": "Haseeb Qureshi <haseeb.n.qureshi@gmail.com> (http://twitter.com/_hq)",
   "repository": {
