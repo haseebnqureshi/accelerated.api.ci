@@ -8,7 +8,7 @@ module.exports = function(express, app, models, settings) {
 	http://yourapp.com/ci/bitbucket/push/branch/master
 	------------*/
 
-	var routerBitbucket = require('./route-bitbucket.js')(express, app, models, settings);
+	var routerBitbucket = new require('./route-bitbucket.js')(express, app, models, settings);
 	app.use('/' + settings.key + '/bitbucket', routerBitbucket);
 
 	/*------
