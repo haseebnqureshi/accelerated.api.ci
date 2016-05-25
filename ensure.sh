@@ -24,6 +24,22 @@ git remote -v
 
 if [ -f $3 ] && [ -f $4 ]; then 
 
+	if [ ! -f ~/.ssh ]; then
+		mkdir ~/.ssh
+	fi
+
+	if [ ! -f ~/.ssh/id_rsa ]; then
+		touch ~/.ssh/id_rsa
+	fi
+
+	if [ ! -f ~/.ssh/id_rsa.pub ]; then
+		touch ~/.ssh/id_rsa.pub
+	fi
+
+	if [ ! -f ~/.ssh/known_hosts ]; then
+		touch ~/.ssh/known_hosts
+	fi
+
 	if [ -f ~/.ssh/id_rsa ]; then
 		chmod 644 ~/.ssh/id_rsa
 	fi
