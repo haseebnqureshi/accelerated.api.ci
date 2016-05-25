@@ -1,6 +1,10 @@
 #!/bin/bash
 
 
+# Make sure forever is installed
+sudo npm install forever -g
+
+
 # Ensure ssh remote url exists on our repo. Since this script
 # loads every time a pull is triggered, we can always ensure
 # the process.env.CI_GIT_SSH_URL value will persist.

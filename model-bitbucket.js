@@ -1,11 +1,13 @@
 module.exports = function(model, express, app, models, settings) {
 
 	var that = this;
+
 	var log = app.get('log');
-	var child = require('child_process');
+
+	var child_process = require('child_process');
+
 	var _ = require('underscore');
-	var http = require('http');
-	var querystring = require('querystring');
+
 	var fs = require('fs');
 
 	//this will help us knowing what entry file triggers our node application
@@ -28,6 +30,19 @@ module.exports = function(model, express, app, models, settings) {
 	this.shouldRestart = false;
 	this.shouldInstall = false;
 
+	/*
+	Part of this script is to monitor the state of the current box, and so
+	we store everything inside this module. 
+
+	Why not store in an directory above your project? Worried about varying
+	permissions and file structures between projects and developers.
+
+	Typically, node_modules are ignored by git in projects. And if this
+	module updates, you'll most likely not want to keep any existing
+	state configurations.
+	*/
+
+	this.localStateDirectory = __dirname;
 
 	model = {
 
@@ -83,28 +98,28 @@ module.exports = function(model, express, app, models, settings) {
 			return model[method](value);
 		},
 
+		createEmitScript: function(url, headers, data) {
+
+			var now = new Date().getTime();
+			var filepath = that.localStateDirectory + '/emit' + now.toString() + '.sh';
+
+			var dataString = JSON.stringify(data);
+			var safeDataString = dataString.replace(/[\'\<\>]/gmi, "");
+
+			var contents = "curl --request POST"
+				+ " --data \'" + safeDataString + "\'"
+				+ " --header \"Content-Type:application/json\""
+				+ " " + url
+				+ "\n"
+				+ "rm " + filepath;
+
+			fs.writeFileSync(filepath, contents, 'utf8');
+			return filepath;
+		},
+
 		emit: function(req) {
 
-			log.get().info('Checking code target of last event received...');
-
-			var event = this.getPersistedEvent();
-			var alreadyCurrent = false;
-
-			try {
-				if (event.target.hash == that.event.target.hash) {
-					alreadyCurrent = true;
-				}
-			}
-			catch (err) {
-				alreadyCurrent = false;
-			}
-
-			if (alreadyCurrent === true) {
-				log.get().info('Already analyzed this event payload. No more emitting.');
-				return;
-			}
-
-			log.get().info('Attempting to emit event to other instances...');
+			if (this.shouldEmit() === false) { return; }
 
 			/*
 			Use this as proxy, rely back to network urls with same 
@@ -114,33 +129,20 @@ module.exports = function(model, express, app, models, settings) {
 			to the outside world.
 			*/
 
-			var postData = querystring.stringify(req.body);
-
-			var options = {
-				path: req.originalUrl,
-				method: 'POST',
-				headers: req.headers
-			};
-
-			_.each(model.getConfig().NETWORK, function(url) {
+			_.each(model.getConfig().NETWORK, function(endpoint) {
 				try {
-					var thisOptions = _.clone(options);
-					var match = url.match(/\/\/([^\:]+)\:?([0-9]+)?/);
-					thisOptions.hostname = match[1];
-					thisOptions.port = match[2] || 80;
-
-					/*
-					Right now, emitting to other networked instances require
-					each instance to have port 80 open to this box. 
-					*/
-
-					var thisRequest = http.request(thisOptions);
-					thisRequest.write(postData);
-					thisRequest.end();
+					var url = endpoint + req.originalUrl;
+					var filepath = model.createEmitScript(url, req.headers, req.body);
+					model.spawnDetachedProcess(filepath);
+					log.get().info('Created emit script for detached spawning...');
 				}
 				catch (err) {
-					log.get().error('Could not emit event to instance!');
-					log.get().error({ url: url });
+					log.get().error('Could not create detached script for emit...');
+					log.get().error({ 
+						endpoint: endpoint,
+						headers: req.headers,
+						err: err
+					});
 				}
 			});
 		},
@@ -167,7 +169,7 @@ module.exports = function(model, express, app, models, settings) {
 				].join(' ');
 
 				//make sure we run with root privileges
-				child.execSync(cmd, [], {
+				child_process.execSync(cmd, [], {
 					uid: process.env.USER
 				});
 			}
@@ -206,7 +208,7 @@ module.exports = function(model, express, app, models, settings) {
 
 		getPersistedEvent: function() {
 			try {
-				var filepath = process.env.PWD + '/../accelerated.api.ci.json';
+				var filepath = that.localStateDirectory + '/state.json';
 				var contents = fs.readFileSync(filepath, 'utf8');
 				var data = JSON.parse(contents);
 			}
@@ -268,7 +270,7 @@ module.exports = function(model, express, app, models, settings) {
 				].join(' ');
 
 				//make sure we run with root privileges
-				child.execSync(cmd);
+				child_process.execSync(cmd);
 			}
 			catch (err) {
 				log.get().error('Install failed! See above...');
@@ -308,7 +310,7 @@ module.exports = function(model, express, app, models, settings) {
 			request.
 			*/
 
-			var filepath = process.env.PWD + '/../accelerated.api.ci.json';
+			var filepath = that.localStateDirectory + '/state.json';
 			var contents = JSON.stringify({ event: that.event });
 			fs.writeFileSync(filepath, contents, 'utf8');
 			return this;
@@ -325,7 +327,7 @@ module.exports = function(model, express, app, models, settings) {
 
 			log.get().info('Attempting to pull ' + this.getEventName() + ' from remote origin...');
 			try {
-				child.execSync('cd ' + process.env.PWD + ' && git pull ssh ' + this.getEventName());
+				child_process.execSync('cd ' + process.env.PWD + ' && git pull ssh ' + this.getEventName());
 			}
 			catch (err) {
 				log.get().error('Pull failed! See above...');
@@ -361,7 +363,7 @@ module.exports = function(model, express, app, models, settings) {
 				].join(' ');
 
 				//make sure we run with root privileges
-				child.execSync(cmd, [], {
+				child_process.execSync(cmd, [], {
 					uid: 'root'
 				});
 			}
@@ -380,7 +382,7 @@ module.exports = function(model, express, app, models, settings) {
 			var milliseconds = this.getDelay();
 			log.get().warn('Waiting ' + milliseconds + ' ms to run...');
 			setTimeout(function() {
-				log.get().warn('Attempting to run...');
+				log.get().warn('Attempting to run ci actions...');
 				this.applyConfig();
 				this.callActions();
 			}.bind(this), milliseconds);
@@ -389,6 +391,65 @@ module.exports = function(model, express, app, models, settings) {
 
 		savePayload: function(payload) {
 			that.payload = payload;
+			return this;
+		},
+
+		shouldEmit: function() {
+
+			log.get().info('Checking code target of last event received...');
+
+			var event = this.getPersistedEvent();
+			var alreadyCurrent = false;
+
+			try {
+				if (event.target.hash == that.event.target.hash) {
+					alreadyCurrent = true;
+				}
+			}
+			catch (err) {
+				alreadyCurrent = false;
+			}
+
+			if (alreadyCurrent === true) {
+				log.get().info('Already analyzed this event payload, should not emit or run...');
+				return false;
+			}
+
+			log.get().info('Event payload looks new, should emit and possibly run...');
+			return true;
+
+		},
+
+		spawnDetachedProcess: function(filepath) {
+
+			var child = child_process.spawn('bash', [filepath], {
+				detached: true,
+				stdio: ['ignore']
+			});
+
+			child.unref();
+
+			child.on('error', function(err) {
+				log.get().error({
+					filepath: filepath,
+					err: err
+				});
+			});
+
+			child.on('close', function(code) {
+				if (code != 0) {
+					log.get().error({
+						filepath: filepath,
+						code: code
+					});
+				}
+				else {
+					log.get().info({
+						message: 'Finished executing!',
+						filepath: filepath
+					});
+				}
+			});
 			return this;
 		},
 

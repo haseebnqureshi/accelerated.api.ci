@@ -26,23 +26,39 @@ module.exports = function(express, app, models, settings) {
 				.summarizeEvent(req.params.event)
 				.summarizeActor();
 
+			//if event wasn't found or malformed, we quit this script
+			if (model.getEvent() === null) { 
+				log.get().error('Event wasn\'t found or its payload was malformed! Quitting ci script...');
+				return; 
+			}
+
 			//emitting to other specified instances
 			model.emit(req);
 
 			//now persisting our current event state
 			model.persistEvent();
 
-			//preparing our integration logic
-			model.ensureSetup();
-				
-			//now evaluating our ci request
-			model.pullIf(
-				model.isEventType(req.params.type) 
-				&& model.isEventName(req.params.name)
-			);
+			/*
+			Only conduct run actions if we should emit! There's no need
+			to redundantly pull, restart, or install anything if our 
+			code is up to the latest point.
+			*/
+			
+			if (model.shouldEmit() === true) {
 
-			//and executing our integration scripts, after some final checks
-			model.run();
+				//preparing our integration logic
+				model.ensureSetup();
+					
+				//now evaluating our ci request
+				model.pullIf(
+					model.isEventType(req.params.type) 
+					&& model.isEventName(req.params.name)
+				);
+
+				//and executing our integration scripts, after some final checks
+				model.run();
+			
+			}
 
 		});
 
