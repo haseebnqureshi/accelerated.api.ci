@@ -208,7 +208,7 @@ module.exports = function(model, express, app, models, settings) {
 
 		getPersistedEvent: function() {
 			try {
-				var filepath = that.localStateDirectory + '/state.json';
+				var filepath = this.getPersistedEventFilepath();
 				var contents = fs.readFileSync(filepath, 'utf8');
 				var data = JSON.parse(contents);
 			}
@@ -218,6 +218,21 @@ module.exports = function(model, express, app, models, settings) {
 				};
 			}
 			return data.event;
+		},
+
+		getPersistedEventFilepath: function() {
+
+			/*
+			To handle asynch issues between receiving two different events
+			for two different branches, we store states for each.
+
+			This can only happen because the POST url's from routes
+			require the event.type and event.name as url params!
+			*/
+
+			return that.localStateDirectory + '/state'
+				+ '-' + that.event.type
+				+ '-' + that.event.name + '.json'; //state-branch-master.json
 		},
 
 		isActorDisplayName: function(displayName) { //John Doe
@@ -310,7 +325,7 @@ module.exports = function(model, express, app, models, settings) {
 			request.
 			*/
 
-			var filepath = that.localStateDirectory + '/state.json';
+			var filepath = this.getPersistedEventFilepath();
 			var contents = JSON.stringify({ event: that.event });
 			fs.writeFileSync(filepath, contents, 'utf8');
 			return this;
