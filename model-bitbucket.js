@@ -170,6 +170,7 @@ module.exports = function(model, express, app, models, settings) {
 				].join(' ');
 
 				//make sure we run with root privileges
+				log.get().info('Synchronously executing ensure.sh script...');
 				child_process.execSync(cmd, [], {
 					uid: process.env.USER
 				});
