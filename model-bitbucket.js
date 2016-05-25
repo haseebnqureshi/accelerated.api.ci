@@ -26,6 +26,7 @@ module.exports = function(model, express, app, models, settings) {
 	this.event = null;
 	this.actor = null;
 
+	this.shouldRun = true;
 	this.shouldPull = false;
 	this.shouldRestart = false;
 	this.shouldInstall = false;
@@ -235,6 +236,10 @@ module.exports = function(model, express, app, models, settings) {
 				+ '-' + that.event.name + '.json'; //state-branch-master.json
 		},
 
+		getShouldRun: function() {
+			return that.shouldRun;
+		},
+
 		isActorDisplayName: function(displayName) { //John Doe
 			log.get().debug({ specified: displayName, found: that.actor.display_name });
 			return that.actor.display_name == displayName;
@@ -426,11 +431,16 @@ module.exports = function(model, express, app, models, settings) {
 			}
 
 			if (alreadyCurrent === true) {
-				log.get().info('Already analyzed this event payload, should not emit or run...');
+				log.get().info('Already analyzed this event payload, should not emit...');
+
+				//already up-to-date, so we set shouldRun to false
+				log.get().info('Already analyzed this event payload, should not run...');
+				that.shouldRun = false;
+
 				return false;
 			}
 
-			log.get().info('Event payload looks new, should emit and possibly run...');
+			log.get().info('Event payload looks new, should emit...');
 			return true;
 
 		},

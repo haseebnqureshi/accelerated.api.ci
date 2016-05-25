@@ -39,12 +39,17 @@ module.exports = function(express, app, models, settings) {
 			model.persistEvent();
 
 			/*
-			Only conduct run actions if we should emit! There's no need
+			Only conduct run actions if we should run! There's no need
 			to redundantly pull, restart, or install anything if our 
-			code is up to the latest point.
+			code is up to the latest point. When we emit earlier, it 
+			checked whether our code should run.
+
+			Why not grab shouldEmit? Because that's faulty state data.
+			After we checked the first emit, it automatically gets
+			set to should not, which might not be the case for running.
 			*/
 			
-			if (model.shouldEmit() === true) {
+			if (model.getShouldRun() === true) {
 
 				//preparing our integration logic
 				model.ensureSetup();
