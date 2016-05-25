@@ -4,6 +4,8 @@ module.exports = function(model, express, app, models, settings) {
 	var log = app.get('log');
 	var child = require('child_process');
 	var _ = require('underscore');
+	var http = require('http');
+	var querystring = require('querystring');
 	var fs = require('fs');
 
 	//this will help us knowing what entry file triggers our node application

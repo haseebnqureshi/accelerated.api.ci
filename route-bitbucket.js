@@ -2,10 +2,6 @@ module.exports = function(express, app, models, settings) {
 
 	var child_process = require('child_process');
 
-	var http = require('http');
-
-	var querystring = require('querystring');
-
 	var _ = require('underscore');
 
 	var log = app.get('log');
@@ -28,11 +24,13 @@ module.exports = function(express, app, models, settings) {
 				.loadEnvVars()
 				.savePayload(req.body)
 				.summarizeEvent(req.params.event)
-				.summarizeActor()
-				.persistEvent();
+				.summarizeActor();
 
 			//emitting to other specified instances
 			model.emit(req);
+
+			//now persisting our current event state
+			model.persistEvent();
 
 			//preparing our integration logic
 			model.ensureSetup();
