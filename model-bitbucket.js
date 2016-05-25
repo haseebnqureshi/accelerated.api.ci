@@ -4,6 +4,7 @@ module.exports = function(model, express, app, models, settings) {
 	var log = app.get('log');
 	var child = require('child_process');
 	var _ = require('underscore');
+	var fs = require('fs');
 
 	//this will help us knowing what entry file triggers our node application
 	this.packageJSON = require(process.env.PWD + '/package.json');
@@ -80,6 +81,59 @@ module.exports = function(model, express, app, models, settings) {
 			return model[method](value);
 		},
 
+		emit: function(req) {
+
+			log.get().info('Checking code target of last event received...');
+
+			var event = this.getPersistedEvent();
+			var alreadyCurrent = false;
+
+			if (event.target.hash == that.event.target.hash) {
+				log.get().info('Already analyzed this event paylod. No more emitting.');
+				return;
+			}
+
+			log.get().info('Attempting to emit event to other instances...');
+
+			/*
+			Use this as proxy, rely back to network urls with same 
+			incoming request. This NEEDS to happen with multiple instances
+			behind one load balancer. The network urls defined in env.json
+			are ideally private IPs made available to this box, but not 
+			to the outside world.
+			*/
+
+			var postData = querystring.stringify(req.body);
+
+			var options = {
+				path: req.originalUrl,
+				method: 'POST',
+				headers: req.headers
+			};
+
+			_.each(model.getConfig().NETWORK, function(url) {
+				try {
+					var thisOptions = _.clone(options);
+					var match = url.match(/\/\/([^\:]+)\:?([0-9]+)?/);
+					thisOptions.hostname = match[1];
+					thisOptions.port = match[2] || 80;
+
+					/*
+					Right now, emitting to other networked instances require
+					each instance to have port 80 open to this box. 
+					*/
+
+					var thisRequest = http.request(thisOptions);
+					thisRequest.write(postData);
+					thisRequest.end();
+				}
+				catch (err) {
+					log.get().error('Could not emit event to instance!');
+					log.get().error({ url: url });
+				}
+			});
+		},
+
 		ensureSetup: function() {
 
 			/*
@@ -137,6 +191,13 @@ module.exports = function(model, express, app, models, settings) {
 
 		getEventName: function() {
 			return that.event.name;
+		},
+
+		getPersistedEvent: function() {
+			var filepath = '~/accelerated.api.ci.json';
+			var contents = fs.readFileSync(filepath, 'utf8');
+			var data = JSON.parse(contents);
+			return data.event;
 		},
 
 		isActorDisplayName: function(displayName) { //John Doe
@@ -218,6 +279,20 @@ module.exports = function(model, express, app, models, settings) {
 				catch (err) {}
 			});
 			log.get().debug({ config: that.config });
+			return this;
+		},
+
+		persistEvent: function() {
+			
+			/*
+			To prevent emit loops, we persist our target hash
+			for our emit method to check, before firing another
+			request.
+			*/
+
+			var filepath = '~/accelerated.api.ci.json';
+			var contents = JSON.stringify({ event: that.event });
+			fs.writeFileSync(filepath, contents, 'utf8');
 			return this;
 		},
 
