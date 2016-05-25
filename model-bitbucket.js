@@ -88,8 +88,17 @@ module.exports = function(model, express, app, models, settings) {
 			var event = this.getPersistedEvent();
 			var alreadyCurrent = false;
 
-			if (event.target.hash == that.event.target.hash) {
-				log.get().info('Already analyzed this event paylod. No more emitting.');
+			try {
+				if (event.target.hash == that.event.target.hash) {
+					alreadyCurrent = true;
+				}
+			}
+			catch (err) {
+				alreadyCurrent = false;
+			}
+
+			if (alreadyCurrent === true) {
+				log.get().info('Already analyzed this event payload. No more emitting.');
 				return;
 			}
 
@@ -194,9 +203,16 @@ module.exports = function(model, express, app, models, settings) {
 		},
 
 		getPersistedEvent: function() {
-			var filepath = '~/accelerated.api.ci.json';
-			var contents = fs.readFileSync(filepath, 'utf8');
-			var data = JSON.parse(contents);
+			try {
+				var filepath = '~/accelerated.api.ci.json';
+				var contents = fs.readFileSync(filepath, 'utf8');
+				var data = JSON.parse(contents);
+			}
+			catch (err) {
+				var data = { 
+					event: {}
+				};
+			}
 			return data.event;
 		},
 
