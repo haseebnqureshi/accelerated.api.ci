@@ -204,7 +204,7 @@ module.exports = function(model, express, app, models, settings) {
 
 		getPersistedEvent: function() {
 			try {
-				var filepath = '~/accelerated.api.ci.json';
+				var filepath = process.env.PWD + '/../accelerated.api.ci.json';
 				var contents = fs.readFileSync(filepath, 'utf8');
 				var data = JSON.parse(contents);
 			}
@@ -306,7 +306,7 @@ module.exports = function(model, express, app, models, settings) {
 			request.
 			*/
 
-			var filepath = '~/accelerated.api.ci.json';
+			var filepath = process.env.PWD + '/../accelerated.api.ci.json';
 			var contents = JSON.stringify({ event: that.event });
 			fs.writeFileSync(filepath, contents, 'utf8');
 			return this;
